@@ -57,6 +57,7 @@ public class Commands {
         addCommand(new UploadStickerPackCommand());
         addCommand(new VerifyCommand());
         addCommand(new VersionCommand());
+        addCommand(new SendRoundRobinNotificationCommand());
     }
 
     public static Map<String, SubparserAttacher> getCommandSubparserAttachers() {
