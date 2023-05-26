@@ -65,6 +65,7 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
         subparser.addArgument("-g", "--group-id", "--group").help("Specify the recipient group ID.");
         subparser.addArgument("-m", "--message").help("Specify message to send. Include @mention somewhere to mention the next user.");
         subparser.addArgument("-s", "--stay").type(int.class).help("Stay and watch for commands for N receive cycles of a few seconds each.");
+        subparser.addArgument("-i", "--ignore-before").setDefault(5).type(int.class).help("Ignore commands before hour N of the current day (to avoid commands that came too late for the last turn to affect this one.");
     }
 
     @Override
@@ -87,6 +88,14 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
             throw new UserErrorException("Number of receive cycles must be a valid integer");
         }
 
+        int ignoreBefore;
+        try {
+            ignoreBefore = ns.getInt("ignore-before");
+        } catch (NullPointerException e) {
+            System.err.println("ignore-before option must be a valid integer, defaulting to 5");
+            ignoreBefore = 5;
+        }
+
         // get the group info we need
         var gid = CommandUtil.getGroupId(groupIdString);
         var groups = m.getGroups();
@@ -106,7 +115,7 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
         doRoundAndSendNotification(m, outputWriter, messageText, group, log);
         while (receiveCycles > 0) {
             try {
-                handleCommands(m, outputWriter, messageText, group, log);
+                handleCommands(m, outputWriter, messageText, group, log, ignoreBefore);
             } catch (InvalidNumberException e1) {
                 // shouldn't happen at all
                 e1.printStackTrace();
@@ -156,7 +165,7 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
         sendSimpleMessage(m, outputWriter, group, messageText, mentions);
     }
 
-    private void handleCommands(final Manager m, final OutputWriter outputWriter, String messageText, Group group, JsonRoundRobinSendLog log)
+    private void handleCommands(final Manager m, final OutputWriter outputWriter, String messageText, Group group, JsonRoundRobinSendLog log, int ignoreBefore)
             throws UnexpectedErrorException, CommandException, UserErrorException, InvalidNumberException {
         // receive some messages, to make signal API endpoints happy and react to commands
         System.err.println("receiving...");
@@ -185,7 +194,7 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
                     continue;
                 }
                 System.err.println("got data from right chat " + data.toString());
-                if (message.serverDeliveredTimestamp() < LocalDateTime.now().withHour(7).withMinute(0)
+                if (message.serverDeliveredTimestamp() < LocalDateTime.now().withHour(ignoreBefore).withMinute(0)
                         .toEpochSecond(ZoneOffset.UTC) * 1000) {
                     // skip commands from before today
                     continue;
