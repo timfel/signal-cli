@@ -29,9 +29,10 @@ import org.asamk.signal.manager.api.MessageEnvelope;
 import org.asamk.signal.manager.api.RecipientAddress;
 import org.asamk.signal.manager.api.RecipientIdentifier;
 import org.asamk.signal.manager.api.UnregisteredRecipientException;
-import org.asamk.signal.manager.groups.GroupNotFoundException;
-import org.asamk.signal.manager.groups.GroupSendingNotAllowedException;
-import org.asamk.signal.manager.groups.NotAGroupMemberException;
+import org.asamk.signal.manager.api.GroupNotFoundException;
+import org.asamk.signal.manager.api.GroupSendingNotAllowedException;
+import org.asamk.signal.manager.api.NotAGroupMemberException;
+import org.asamk.signal.manager.api.TextStyle;
 import org.asamk.signal.output.OutputWriter;
 import org.asamk.signal.output.PlainTextWriter;
 import org.asamk.signal.util.CommandUtil;
@@ -278,16 +279,21 @@ public class SendRoundRobinNotificationCommand implements JsonRpcLocalCommand {
     private void sendSimpleMessage(final Manager m, final OutputWriter outputWriter, Group group, String msg, List<Message.Mention> mentions)
             throws CommandException, UnexpectedErrorException, UserErrorException {
         try {
+            if (mentions == null) {
+                mentions = List.<Message.Mention>of();
+            }
             var results = m.sendMessage(
                     new Message(
                             msg + YOUR_BOT,
-                            List.of(),
-                            mentions == null ? List.of() : mentions,
-                            Optional.ofNullable(null),
-                            Optional.ofNullable(null),
-                            List.of(),
-                            Optional.ofNullable(null)),
-                    Set.of(new RecipientIdentifier.Group(group.groupId())));
+                            List.<String>of(),
+                            mentions,
+                            Optional.<Message.Quote>ofNullable(null),
+                            Optional.<Message.Sticker>ofNullable(null),
+                            List.<Message.Preview>of(),
+                            Optional.<Message.StoryReply>ofNullable(null),
+                            List.<TextStyle>of()),
+                    Set.of(new RecipientIdentifier.Group(group.groupId())),
+                    true /* notifySelf */);
             SendMessageResultUtils.outputResult(outputWriter, results);
         } catch (AttachmentInvalidException | IOException e) {
             throw new UnexpectedErrorException("Failed to send message: " + e.getMessage()
